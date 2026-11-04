@@ -4,7 +4,7 @@ IT Troubleshooting Toolkit - Interactive Launcher Menu
 
 .DESCRIPTION
 Name: launch_menu.ps1
-Version: 3.19.4
+Version: 3.20.0
 Purpose: Centralized launcher menu for IT troubleshooting tools and service management.
          Provides quick access to FTP file transfer tools and StorageCraft ImageManager service control.
 Path: /scripts/launch_menu.ps1
@@ -113,6 +113,7 @@ Change Log:
 2026-10-08 v3.19.3 - HP M404dn Driver Reinstall: on open, offers to install the printer as a network printer and
                     asks for the IP when it is missing, on USB/WSD, or duplicated.
 2026-10-08 v3.19.4 - HP M404dn submenu: recommended workflow covers option 3 (network install, have the IP ready).
+2026-11-03 v3.20.0 - Added Claude Temporary Access as menu option 8 (temporary SSH over Tailscale, removed automatically).
 .RELEASE_NOTES
 v2.5.0:
 - Added comprehensive master audit logging system for troubleshooting
@@ -233,7 +234,7 @@ function Show-Menu {
     Clear-Host
     
     # Get version dynamically from script header
-    $scriptVersion = "3.19.4"
+    $scriptVersion = "3.20.0"
     $scriptPath = $PSCommandPath
     if (Test-Path $scriptPath) {
         $content = Get-Content $scriptPath -Raw
@@ -260,6 +261,9 @@ function Show-Menu {
     Write-Host ""
     Write-Host "  Project Tools:" -ForegroundColor White
     Write-Host "    7. Project Planner (share scan and migration report)" -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host "  Remote Support:" -ForegroundColor White
+    Write-Host "    8. Claude Temporary Access (SSH, removed automatically)" -ForegroundColor Cyan
     Write-Host ""
     Write-Host "  Windows/Office Activation:" -ForegroundColor White
     Write-Host "    5. Run MassGrave Activation Scripts (MAS)" -ForegroundColor Magenta
@@ -677,6 +681,36 @@ function Run-HPM404dnTroubleshooter {
     }
 }
 
+function Run-ClaudeTempAccess {
+    Write-Host "`n=== Launching Claude Temporary Access ===" -ForegroundColor Cyan
+
+    $scriptPath = Join-Path $installPath "claude_temp_access.ps1"
+
+    if (-not (Test-Path $scriptPath)) {
+        Write-Host "`nError: Claude Temporary Access not found!" -ForegroundColor Red
+        Write-Host "Expected location: $scriptPath" -ForegroundColor Yellow
+        Write-Host "`nPlease use Option 1 to download and install first." -ForegroundColor Yellow
+
+        Write-AuditLog -action "Claude Temporary Access" -level "ERROR" -errorMessage "Script not found: $scriptPath"
+
+        Write-Host "`nPress any key to return to menu..."
+        $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+        return
+    }
+
+    if (-not (Test-Administrator)) {
+        Write-Host "`nClaude Temporary Access must run in PowerShell as admin." -ForegroundColor Red
+        Write-AuditLog -action "Claude Temporary Access" -level "WARN" -details "Not started: not running as admin"
+
+        Write-Host "`nPress any key to return to menu..."
+        $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+        return
+    }
+
+    Write-AuditLog -action "Claude Temporary Access" -details "Launched claude_temp_access.ps1"
+    & $scriptPath
+}
+
 function Run-ProjectPlanner {
     Write-Host "`n=== Launching Project Planner ===" -ForegroundColor Cyan
 
@@ -881,12 +915,12 @@ function Run-MassGraveActivation {
 }
 
 # Log script startup
-Write-AuditLog -action "Script Started" -details "IT Troubleshooting Toolkit Launcher v3.19.4"
+Write-AuditLog -action "Script Started" -details "IT Troubleshooting Toolkit Launcher v3.20.0"
 
 # Main menu loop
 do {
     Show-Menu
-    Write-Host "  Select an option (1-7 or Q): " -NoNewline -ForegroundColor White
+    Write-Host "  Select an option (1-8 or Q): " -NoNewline -ForegroundColor White
     $choice = Read-Host
     
     switch ($choice.ToUpper()) {
@@ -944,6 +978,15 @@ do {
                 throw
             }
         }
+        '8' {
+            Write-AuditLog -action "Menu Selection" -details "Option 8: Claude Temporary Access"
+            try {
+                Run-ClaudeTempAccess
+            } catch {
+                Write-AuditLog -action "Claude Temporary Access" -level "ERROR" -errorMessage $_.Exception.Message
+                throw
+            }
+        }
         '5' {
             Write-AuditLog -action "Menu Selection" -details "Option 5: Run MassGrave Activation Scripts"
             try {
@@ -969,7 +1012,7 @@ do {
         }
         default {
             Write-AuditLog -action "Invalid Menu Selection" -level "WARN" -details "User entered: $choice"
-            Write-Host "`nInvalid selection. Please choose 1-7 or Q." -ForegroundColor Red
+            Write-Host "`nInvalid selection. Please choose 1-8 or Q." -ForegroundColor Red
             Start-Sleep -Seconds 2
         }
     }

@@ -2,7 +2,7 @@
 
 ![Superior Networks Logo](logo.png)
 
-**Version:** 3.19.4
+**Version:** 3.20.0
 **Copyright:** 2025-2026  
 **Developed by:** Superior Networks LLC
 
@@ -16,6 +16,7 @@ The **IT Troubleshooting Toolkit** is a comprehensive PowerShell-based solution 
 
 - **StorageCraft Backup Management** - Complete toolset for managing ShadowProtect backups
 - **ConnectWise RMM Repair** - Automated utilities to clear stuck ScreenConnect agents and redeploy RMM agents
+- **Claude Temporary Access** - Opens temporary admin SSH access for Claude over Tailscale, then removes it automatically
 - **HP M404dn Printer Repair** - Guided connectivity diagnostics, spooler repair, and driver reinstall for HP LaserJet Pro M404dn printers
 - **macOS OneDrive Repair** - A dry-run-first terminal workflow for post-update OneDrive synchronization failures
 - **FTP Synchronization** - Multiple methods to sync backups to offsite FTP servers
@@ -104,7 +105,7 @@ The toolkit creates a launcher at: `C:\ITTools\Scripts\launcher.bat`
 
 ```
 SUPERIOR NETWORKS LLC
-IT Troubleshooting Toolkit - v3.19.4
+IT Troubleshooting Toolkit - v3.20.0
 
 Toolkit Management:
   1. Download and Install Latest Version
@@ -117,6 +118,9 @@ Troubleshooting Tools:
 
 Project Tools:
   7. Project Planner (share scan and migration report)
+
+Remote Support:
+  8. Claude Temporary Access (SSH, removed automatically)
 
 Windows/Office Activation:
   5. Run MassGrave Activation Scripts (MAS)
@@ -133,7 +137,7 @@ The **macOS Troubleshooter Terminal** provides a signed-in-user workflow for mac
 
 ```
 SUPERIOR NETWORKS LLC
-macOS Troubleshooter Terminal - Toolkit v3.19.4
+macOS Troubleshooter Terminal - Toolkit v3.20.0
 
 START HERE
   Choose a task below. Every repair explains its impact before it makes a change.
@@ -151,7 +155,7 @@ SUPPORT
          Workflow, safeguards, log locations, and operating limits.
   [ Q ]  Quit
 
-Footer: Help Guide: Select [ H ] in this terminal | Superior Networks macOS Toolkit v3.19.4
+Footer: Help Guide: Select [ H ] in this terminal | Superior Networks macOS Toolkit v3.20.0
 ```
 
 ### Help Guide (Option H)
@@ -200,7 +204,7 @@ The **ConnectWise RMM Troubleshooter** submenu (option #4) provides automated re
 
 ```
 SUPERIOR NETWORKS LLC
-ConnectWise RMM Troubleshooter - Toolkit v3.19.4
+ConnectWise RMM Troubleshooter - Toolkit v3.20.0
 
 Step 1 - ScreenConnect Cleanup:
   1. Repair ScreenConnect (Uninstall/Cleanup)
@@ -261,13 +265,38 @@ Tests (fake share, end-to-end checks) live in the repo under `tests/project_plan
 
 ---
 
+## Claude Temporary Access
+
+**Claude Temporary Access** (option #8) lets a technician give Claude on sn-claude1026 a temporary admin shell on a Windows PC, without opening any port on the client's network.
+
+**Open access** asks how many hours (1 to 12, default 4), asks for confirmation, then asks for a Tailscale auth key. Make the key at [Tailscale Keys](https://login.tailscale.com/admin/settings/keys) with Ephemeral on, Reusable off and a 1-day expiry, and paste it only at the prompt on the PC.
+
+It then:
+- Joins the PC to the Superior Networks Tailscale network as `<computer name>-temp`, with DNS and routes left alone
+- Runs a private OpenSSH copy as service `SNClaudeSSH`, on port 2222, on the Tailscale address only
+- Adds local admin `svc-claude-temp` with a random password nobody sees, key login only
+- Allows only sn-claude1026 through the firewall and blocks port forwarding
+- Sets a SYSTEM scheduled task that closes everything when the time is up
+
+**Close access now** removes the service, account, firewall rule, Tailscale, task and files. Windows can hold the profile folder until the next reboot, and the log says if it did. If opening fails at any step, it removes what it added.
+
+**Good to know:**
+- Needs Windows PowerShell 5.1 or later, run as admin
+- Stops if Tailscale is already on the PC, so its settings are left alone
+- Leaves any OpenSSH already on the PC alone
+- This is full admin access. Use it only with the client's work in scope
+- Each login is listed in `C:\ProgramData\SN-ClaudeAccess\access.log`, which stays after closing
+- Open and close are also logged to `master_audit_log.txt`
+
+---
+
 ## HP M404dn Printer Troubleshooter
 
 The **HP M404dn Printer Troubleshooter** submenu (option #6) provides a guided workflow for diagnosing and repairing common HP LaserJet Pro M404dn printing failures, including loss of network or USB connectivity, stuck print jobs, and corrupted printer drivers.
 
 ```
 SUPERIOR NETWORKS LLC
-HP M404dn Printer Troubleshooter - Toolkit v3.19.4
+HP M404dn Printer Troubleshooter - Toolkit v3.20.0
 
   1. Connectivity Test (network / USB diagnostics)
   2. Spooler Repair (stuck jobs / hung spooler)
@@ -318,7 +347,7 @@ The **StorageCraft Troubleshooter** submenu (option #3) provides comprehensive b
 
 ```
 SUPERIOR NETWORKS LLC
-StorageCraft Troubleshooter - Toolkit v3.19.4
+StorageCraft Troubleshooter - Toolkit v3.20.0
 
 Manual Tools:
   1. Upload Single File (PowerShell FTP)
@@ -966,6 +995,10 @@ This depends on the scenario. The table below covers the most common situations 
 
 ## Security Considerations
 
+### Claude Temporary Access
+
+Option 8 grants full admin access for a limited time. The private key exists only on sn-claude1026. The script holds only the public key, and logins are limited to one account from one address. See [Claude Temporary Access](#claude-temporary-access).
+
 ### Execution Policy
 
 The toolkit requires `ExecutionPolicy Bypass` to run PowerShell scripts.
@@ -1029,6 +1062,13 @@ For support, feature requests, or bug reports:
 ---
 
 ## Change Log
+
+### Version 3.20.0 (2026-11-03) - CLAUDE TEMPORARY ACCESS
+
+- **New Feature**: Added **Claude Temporary Access** as main-menu **Option 8**. It opens temporary admin SSH access for Claude on sn-claude1026 over Tailscale, with no open port on the client's network.
+- **Automatic Removal**: A SYSTEM scheduled task closes access after 1 to 12 hours (default 4). If opening fails at any step, the tool removes what it added.
+- **Locked Down**: Private OpenSSH copy on port 2222, Tailscale address only, key login only, one account, one source address, port forwarding off. Both downloads are SHA-256 pinned.
+- **Installer**: Both bootstraps now require `claude_temp_access.ps1`.
 
 ### Version 3.19.4 (2026-10-08) - HP M404DN SUBMENU WORKFLOW COVERS OPTION 3
 - **Recommended Workflow**: The HP M404dn submenu now says when to use option 3 (printer on USB, just moved to Ethernet, or duplicated; or still failing after options 1 and 2) and to have the printer's IP ready from its Configuration Report.

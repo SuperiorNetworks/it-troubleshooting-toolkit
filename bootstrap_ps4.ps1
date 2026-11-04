@@ -24,7 +24,7 @@ PowerShell.exe -ExecutionPolicy Bypass -File bootstrap_ps4.ps1
 
 .COPYRIGHT
 Name: bootstrap_ps4.ps1
-Version: 3.18.4
+Version: 3.20.0
 Purpose: Installs or updates the IT Troubleshooting Toolkit from GitHub and launches it.
          PowerShell 4.0+ (Server 2012 R2, Windows 7/8); uses .NET ZipFile.
 Author: Dwain Henderson Jr. | Superior Networks LLC
@@ -60,6 +60,7 @@ Change Log:
                      execution policy (Dwain Henderson Jr)
 2026-10-06 v3.18.4 - Usage: install command saves this file to C:\ITTools and runs it (no irm | iex,
                      which Defender flags as Trojan:Win32/Commando.A!ml) (Dwain Henderson Jr)
+2026-11-03 v3.20.0 - Require claude_temp_access.ps1 (Dwain Henderson Jr)
 #>
 
 # Enable TLS 1.2 for GitHub downloads
@@ -83,6 +84,7 @@ $requiredToolkitFiles = @(
     "storagecraft_troubleshooter.ps1",
     "storagecraft_log_viewer.ps1",
     "project_planner.ps1",
+    "claude_temp_access.ps1",
     "hp_m404dn_troubleshooter.ps1",
     "hp_m404dn_connectivity_test.ps1",
     "hp_m404dn_spooler_repair.ps1",
