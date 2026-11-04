@@ -2,7 +2,7 @@
 
 ![Superior Networks Logo](logo.png)
 
-**Version:** 3.20.0
+**Version:** 3.20.1
 **Copyright:** 2025-2026  
 **Developed by:** Superior Networks LLC
 
@@ -105,7 +105,7 @@ The toolkit creates a launcher at: `C:\ITTools\Scripts\launcher.bat`
 
 ```
 SUPERIOR NETWORKS LLC
-IT Troubleshooting Toolkit - v3.20.0
+IT Troubleshooting Toolkit - v3.20.1
 
 Toolkit Management:
   1. Download and Install Latest Version
@@ -137,7 +137,7 @@ The **macOS Troubleshooter Terminal** provides a signed-in-user workflow for mac
 
 ```
 SUPERIOR NETWORKS LLC
-macOS Troubleshooter Terminal - Toolkit v3.20.0
+macOS Troubleshooter Terminal - Toolkit v3.20.1
 
 START HERE
   Choose a task below. Every repair explains its impact before it makes a change.
@@ -155,7 +155,7 @@ SUPPORT
          Workflow, safeguards, log locations, and operating limits.
   [ Q ]  Quit
 
-Footer: Help Guide: Select [ H ] in this terminal | Superior Networks macOS Toolkit v3.20.0
+Footer: Help Guide: Select [ H ] in this terminal | Superior Networks macOS Toolkit v3.20.1
 ```
 
 ### Help Guide (Option H)
@@ -204,7 +204,7 @@ The **ConnectWise RMM Troubleshooter** submenu (option #4) provides automated re
 
 ```
 SUPERIOR NETWORKS LLC
-ConnectWise RMM Troubleshooter - Toolkit v3.20.0
+ConnectWise RMM Troubleshooter - Toolkit v3.20.1
 
 Step 1 - ScreenConnect Cleanup:
   1. Repair ScreenConnect (Uninstall/Cleanup)
@@ -269,7 +269,7 @@ Tests (fake share, end-to-end checks) live in the repo under `tests/project_plan
 
 **Claude Temporary Access** (option #8) lets a technician give Claude on sn-claude1026 a temporary admin shell on a Windows PC, without opening any port on the client's network.
 
-**Open access** asks how many hours (1 to 12, default 4), asks for confirmation, then asks for a Tailscale auth key. Make the key at [Tailscale Keys](https://login.tailscale.com/admin/settings/keys) with Ephemeral on, Reusable off and a 1-day expiry, and paste it only at the prompt on the PC.
+**Open access** asks how many hours (1 to 12, default 4), asks for confirmation, then asks for a Tailscale auth key. Use the reusable key saved in Keeper, and paste it only at the prompt on the PC. To make a new one at [Tailscale Keys](https://login.tailscale.com/admin/settings/keys), turn Reusable and Ephemeral on, set 90 days, and choose tag `tag:temp-support`.
 
 It then:
 - Joins the PC to the Superior Networks Tailscale network as `<computer name>-temp`, with DNS and routes left alone
@@ -278,10 +278,11 @@ It then:
 - Allows only sn-claude1026 through the firewall and blocks port forwarding
 - Sets a SYSTEM scheduled task that closes everything when the time is up
 
-**Close access now** removes the service, account, firewall rule, Tailscale, task and files. Windows can hold the profile folder until the next reboot, and the log says if it did. If opening fails at any step, it removes what it added.
+**Close access now** removes the service, account, firewall rule, Tailscale, task and files. Windows can hold the profile folder until the next reboot, and the log says if it did. A one-time startup task then removes it. If opening fails at any step, it removes what it added.
 
 **Good to know:**
-- Needs Windows PowerShell 5.1 or later, run as admin
+- Needs Windows PowerShell 5.1 or later and 64-bit Intel or AMD Windows, run as admin
+- Access survives a reboot of the PC, so the session can continue after one
 - Stops if Tailscale is already on the PC, so its settings are left alone
 - Leaves any OpenSSH already on the PC alone
 - This is full admin access. Use it only with the client's work in scope
@@ -296,7 +297,7 @@ The **HP M404dn Printer Troubleshooter** submenu (option #6) provides a guided w
 
 ```
 SUPERIOR NETWORKS LLC
-HP M404dn Printer Troubleshooter - Toolkit v3.20.0
+HP M404dn Printer Troubleshooter - Toolkit v3.20.1
 
   1. Connectivity Test (network / USB diagnostics)
   2. Spooler Repair (stuck jobs / hung spooler)
@@ -347,7 +348,7 @@ The **StorageCraft Troubleshooter** submenu (option #3) provides comprehensive b
 
 ```
 SUPERIOR NETWORKS LLC
-StorageCraft Troubleshooter - Toolkit v3.20.0
+StorageCraft Troubleshooter - Toolkit v3.20.1
 
 Manual Tools:
   1. Upload Single File (PowerShell FTP)
@@ -1062,6 +1063,14 @@ For support, feature requests, or bug reports:
 ---
 
 ## Change Log
+
+### Version 3.20.1 (2026-11-04) - CLAUDE TEMPORARY ACCESS FOR REPEAT USE
+
+- Uses one reusable tagged Tailscale key from Keeper instead of a new key for each job
+- Passes the key through a locked file, so it never shows in a process command line
+- A warning from Tailscale no longer stops the join; the exit code decides
+- The SSH service starts late and keeps retrying, so access comes back after a reboot
+- A profile folder held by Windows is removed at the next startup
 
 ### Version 3.20.0 (2026-11-03) - CLAUDE TEMPORARY ACCESS
 

@@ -4,7 +4,7 @@ Claude Temporary Access - Opens and removes temporary SSH access for Claude
 
 .DESCRIPTION
 Name: claude_temp_access.ps1
-Version: 3.20.0
+Version: 3.20.1
 Purpose: Opens temporary admin SSH access to this PC for Claude on sn-claude1026 over Tailscale,
          then removes it automatically after a set time.
 Author: Dwain Henderson Jr. | Superior Networks LLC
@@ -20,15 +20,15 @@ What This Script Does:
   - Open: sets a SYSTEM scheduled task that closes everything after the chosen hours (default 4)
   - Open: if any step fails, it removes everything it added
   - Close: removes the service, account, profile, firewall rule, Tailscale, task and files
-  - Close: Windows can hold the profile folder until the next reboot; the log says if it did
+  - Close: Windows can hold the profile folder until the next reboot; a one-time startup task then removes it
   - Status: shows what is open now
   - Does not touch any OpenSSH already on this PC, and stops if Tailscale is already here
 
 Input:
   - Menu choices, or -Action Open | Close | Status
   - -Hours 1 to 12, how long access stays open
-  - Tailscale auth key, typed at the prompt on this PC (or -AuthKey). Use an ephemeral,
-    single-use key with a 1-day expiry
+  - Tailscale auth key, typed at the prompt on this PC (or -AuthKey). Use the reusable key in
+    Keeper: ephemeral, tagged tag:temp-support, 90-day expiry
   - -LanTest skips Tailscale and allows 192.168.1.36 (DASHBOARD testing only)
   - -Yes skips the confirmation prompt
 
@@ -43,6 +43,7 @@ Dependencies:
 
 Change Log:
 2026-11-03 v3.20.0 - Initial release (Dwain Henderson Jr)
+2026-11-04 v3.20.1 - Auth key passed by file, not command line; a stderr warning no longer aborts the Tailscale join; SSH service recovers after a reboot; held profile folder removed at next startup (Dwain Henderson Jr)
 #>
 [CmdletBinding()]
 param(
@@ -63,6 +64,7 @@ $User      = 'svc-claude-temp'
 $Port      = 2222
 $Rule      = 'SN Claude temp SSH'
 $Task      = 'SN-ClaudeAccess-Close'
+$CleanTask = 'SN-ClaudeAccess-Cleanup'
 $TsExe     = 'C:\Program Files\Tailscale\tailscale.exe'
 $PubKey    = 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIG+Vkkd9b7Qp7xl5gtdaMhDhoumrBcaz6F1N3wtkmVN8 claude-temp@sn-claude1026'
 $Source    = if ($LanTest) { '192.168.1.36' } else { '100.84.207.70' }
@@ -143,6 +145,13 @@ function Close-Access {
   if (Get-NetFirewallRule -DisplayName $Rule -ErrorAction SilentlyContinue) { $left += 'firewall rule' }
   if ($state -and $state.TailscaleOurs -and (Test-Path $TsExe)) { $left += 'Tailscale' }
   if (@(Get-ChildItem $Root -Force -ErrorAction SilentlyContinue | Where-Object { $_.Name -ne 'access.log' }).Count) { $left += 'files' }
+  if ($left -contains 'profile folder until next reboot') {
+    # Nothing else would clear the folder after the reboot, so a one-time startup task does it
+    $act = New-ScheduledTaskAction -Execute 'cmd.exe' -Argument "/c for /d %d in (`"C:\Users\$User*`") do rd /s /q `"%d`" & schtasks /delete /tn $CleanTask /f"
+    $trg = New-ScheduledTaskTrigger -AtStartup
+    $prn = New-ScheduledTaskPrincipal -UserId 'SYSTEM' -LogonType ServiceAccount -RunLevel Highest
+    Register-ScheduledTask -TaskName $CleanTask -Action $act -Trigger $trg -Principal $prn -Force | Out-Null
+  }
   $result = "Access closed. Left behind: $(if ($left) { $left -join ', ' } else { 'nothing' })"
   Write-Log $result
   Write-AuditLog -action 'Claude Temporary Access' -details $result
@@ -155,6 +164,9 @@ function Open-Access {
   if (Get-Service $Svc -ErrorAction SilentlyContinue) { throw 'Access is already open. Use Status or Close.' }
   if (Get-LocalUser -Name $User -ErrorAction SilentlyContinue) { throw "Account $User already exists. Use Close first." }
   if (-not $LanTest -and (Test-Path $TsExe)) { throw 'Tailscale is already on this PC. Stopped so its settings are left alone.' }
+
+  # A cleanup still waiting from the last close would delete the new account's profile at a reboot
+  Unregister-ScheduledTask -TaskName $CleanTask -Confirm:$false -ErrorAction SilentlyContinue
 
   $closeAt = (Get-Date).AddHours($Hours)
   New-Item $Root -ItemType Directory -Force | Out-Null
@@ -181,8 +193,16 @@ function Open-Access {
     $n = 0
     while ((Get-Service Tailscale -ErrorAction SilentlyContinue).Status -ne 'Running' -and $n -lt 30) { Start-Sleep -Seconds 1; $n++ }
     $name = "$($env:COMPUTERNAME.ToLower())-temp"
-    $out = & $TsExe up "--authkey=$AuthKey" "--hostname=$name" --accept-dns=false --accept-routes=false --unattended --timeout=60s 2>&1
-    if ($LASTEXITCODE) { throw "Tailscale would not connect: $out" }
+    # The key is reusable, so it goes through a file in the locked folder, never a process command line
+    $keyFile = "$Root\tailscale.key"
+    [IO.File]::WriteAllText($keyFile, $AuthKey, (New-Object Text.ASCIIEncoding))
+    # Windows PowerShell treats any stderr line as an error here, so the exit code decides instead
+    $ErrorActionPreference = 'Continue'
+    $out = & $TsExe up "--auth-key=file:$keyFile" "--hostname=$name" --accept-dns=false --accept-routes=false --unattended --timeout=60s 2>&1
+    $upCode = $LASTEXITCODE
+    $ErrorActionPreference = 'Stop'
+    Remove-Item $keyFile -Force
+    if ($upCode) { throw "Tailscale would not connect: $out" }
     $listen = (& $TsExe ip -4 | Select-Object -First 1).Trim()
     Write-Log "Tailscale connected as $name at $listen"
   }
@@ -232,6 +252,9 @@ function Open-Access {
   New-NetFirewallRule -DisplayName $Rule -Direction Inbound -Action Allow -Protocol TCP -LocalPort $Port -RemoteAddress $Source -Profile Any | Out-Null
   New-Service -Name $Svc -BinaryPathName "`"$ssh\sshd.exe`" -f `"$Root\sshd_config`" -E `"$Root\sshd.log`"" -DisplayName 'SN Claude temporary SSH' -StartupType Automatic | Out-Null
   sc.exe failure $Svc reset= 0 actions= restart/30000/restart/30000/restart/60000 | Out-Null
+  # After a reboot the Tailscale address can be missing at first, so start late and keep retrying
+  sc.exe failureflag $Svc 1 | Out-Null
+  sc.exe config $Svc start= delayed-auto | Out-Null
   Start-Service $Svc
   Start-Sleep -Seconds 2
   if ((Get-Service $Svc).Status -ne 'Running') { throw 'The SSH service would not stay running.' }
@@ -248,7 +271,7 @@ function Start-Open {
     if ((Read-Host '  Type YES to go ahead') -cne 'YES') { Write-Host '  Stopped. Nothing changed.'; return }
   }
   if (-not $LanTest -and -not $AuthKey) {
-    $sec = Read-Host '  Paste the Tailscale auth key' -AsSecureString
+    $sec = Read-Host '  Paste the Tailscale auth key from Keeper' -AsSecureString
     $ptr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($sec)
     $script:AuthKey = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($ptr)
     [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($ptr)
@@ -280,7 +303,7 @@ function Show-ToolMenu {
     Write-Host ''
     Write-Host '  =================================================================' -ForegroundColor Cyan
     Write-Host '                     SUPERIOR NETWORKS LLC                        ' -ForegroundColor White
-    Write-Host '           Claude Temporary Access - Toolkit v3.20.0              ' -ForegroundColor Cyan
+    Write-Host '           Claude Temporary Access - Toolkit v3.20.1              ' -ForegroundColor Cyan
     Write-Host '  =================================================================' -ForegroundColor Cyan
     Write-Host ''
     if ($isOpen) { Write-Host '  Access is OPEN on this PC.' -ForegroundColor Yellow } else { Write-Host '  Access is closed.' -ForegroundColor Green }

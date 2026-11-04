@@ -4,7 +4,7 @@ IT Troubleshooting Toolkit - Interactive Launcher Menu
 
 .DESCRIPTION
 Name: launch_menu.ps1
-Version: 3.20.0
+Version: 3.20.1
 Purpose: Centralized launcher menu for IT troubleshooting tools and service management.
          Provides quick access to FTP file transfer tools and StorageCraft ImageManager service control.
 Path: /scripts/launch_menu.ps1
@@ -114,6 +114,7 @@ Change Log:
                     asks for the IP when it is missing, on USB/WSD, or duplicated.
 2026-10-08 v3.19.4 - HP M404dn submenu: recommended workflow covers option 3 (network install, have the IP ready).
 2026-11-03 v3.20.0 - Added Claude Temporary Access as menu option 8 (temporary SSH over Tailscale, removed automatically).
+2026-11-04 v3.20.1 - Claude Temporary Access ready for repeat use: reusable key handled safely, survives a reboot, cleans up its profile folder.
 .RELEASE_NOTES
 v2.5.0:
 - Added comprehensive master audit logging system for troubleshooting
@@ -234,7 +235,7 @@ function Show-Menu {
     Clear-Host
     
     # Get version dynamically from script header
-    $scriptVersion = "3.20.0"
+    $scriptVersion = "3.20.1"
     $scriptPath = $PSCommandPath
     if (Test-Path $scriptPath) {
         $content = Get-Content $scriptPath -Raw
@@ -915,7 +916,7 @@ function Run-MassGraveActivation {
 }
 
 # Log script startup
-Write-AuditLog -action "Script Started" -details "IT Troubleshooting Toolkit Launcher v3.20.0"
+Write-AuditLog -action "Script Started" -details "IT Troubleshooting Toolkit Launcher v3.20.1"
 
 # Main menu loop
 do {
