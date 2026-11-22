@@ -1,0 +1,42 @@
+schema: 1
+id: it-toolkit
+name: IT Troubleshooting Toolkit
+repo: it-troubleshooting-toolkit
+category: tooling
+status: live
+zone: sn-claude1026
+order: 44
+summary: PowerShell · client PCs
+what: "Technician toolkit installed from GitHub on client PCs (C:\\ITTools\\Scripts): StorageCraft ShadowProtect/ImageManager checks, FTP offsite sync, ScreenConnect/RMM repair, HP printer repair, Project Planner, macOS OneDrive repair, and Claude Temporary Access. master = production (every machine updates from it), work on dev. Tested on the DASHBOARD PC."
+owns:
+  - Client-PC repair menus (StorageCraft, ImageManager, FTP sync, RMM, printers)
+  - Toolkit installer and auto-update from the master branch
+  - Claude Temporary Access (temporary admin SSH on a client PC)
+  - Project Planner share-scan and migration report
+  - macOS OneDrive sync repair
+  - Toolkit version (Version line in launch_menu.ps1)
+version_note: README and launch_menu.ps1 say v3.20.1; the only git tag is an asset release (v3.5.1-assets)
+built:
+  - Main menu with StorageCraft, ConnectWise RMM, HP M404dn, Project Planner and Claude Temporary Access tools
+  - One-command bootstrap for Windows (PS 5.1 and 4.0) and macOS, with version-checked updates
+  - Claude Temporary Access opens a time-limited SSH shell over Tailscale and closes itself (option 8)
+  - Test scripts for Project Planner (tests/)
+missing:
+  - Git tags and releases don't track the toolkit version
+  - Public repo, so it can't hold client data
+  - No automated tests for the other tools; each change is tested by hand on the DASHBOARD PC
+data: None (scripts and logs on each PC)
+next: Keep work on dev; merge to master only after Dwain tests on a Windows PC.
+connects:
+  - to: x-gh
+    label: installs from raw
+    type: read
+  - to: dashboard
+    label: tested on
+    type: admin
+  - to: x-sc
+    label: repairs ScreenConnect
+    type: admin
+  - to: claude
+    label: temporary SSH access
+    type: admin
